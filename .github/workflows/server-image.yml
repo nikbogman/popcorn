@@ -1,0 +1,34 @@
+# Builds server/ on every push to main and pushes ghcr.io/nikbogman/popcorn-server:latest and :sha-<short>.
+name: server image
+
+on:
+  push:
+    branches: [main]
+    paths: [server/**, .github/workflows/server-image.yml]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/nikbogman/popcorn-server
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-
+      - uses: docker/build-push-action@v6
+        with:
+          context: '{{defaultContext}}:server'
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
