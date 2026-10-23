@@ -32,7 +32,7 @@ The server runs on the homelab as the [`stacks/popcorn`](https://github.com/nikb
 
 ## Reel scraper (`app/reels`)
 
-Finds which movie or TV show an Instagram reel is about. Prototype from [#14](https://github.com/nikbogman/watchlist/issues/14).
+Finds which movie or TV show an Instagram reel is about. Prototype from [#14](https://github.com/nikbogman/popcorn/issues/14).
 
 `POST /api/reels { url }` queues a job in the `reel_scrape` table; poll `GET /api/reels/{id}` until `status` is `done` (with `reel`) or `failed` (with `error`). One worker in the server process runs jobs one at a time, oldest first. `GET /api/reels` lists every job newest first, with `title` instead of the whole reel; the app shows them as Requests. A job's URL is stored as `/p/<shortcode>/`, so sharing a reel again returns its existing job (re-queued if it failed). `POST /api/reels/{id}/retry` re-queues a failed job.
 
