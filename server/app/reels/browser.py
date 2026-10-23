@@ -72,11 +72,14 @@ def scrape_with_shared_browser(pool: asyncpg.Pool, idle_minutes: float = 5):
         storage_state = await pool.fetchval('select storage_state from instagram_session')
         if not storage_state:
             raise RuntimeError(f'No Instagram session saved, {LOGIN_HINT}')
-        context = await (await _acquire()).new_context(storage_state=storage_state)
+        shared = await _acquire()
         try:
-            return await scrape_reel(context, url, until=until)
+            context = await shared.new_context(storage_state=storage_state)
+            try:
+                return await scrape_reel(context, url, until=until)
+            finally:
+                await context.close()
         finally:
-            await context.close()
             _release(idle_minutes * 60)
 
     return scrape

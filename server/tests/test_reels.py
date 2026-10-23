@@ -313,3 +313,21 @@ async def test_the_shared_browser_closes_when_idle_and_relaunches_for_the_next_j
     assert await browser._acquire() is second, 'a job within the idle time reuses the browser'
     await browser.close_shared_browser()
     assert not second.is_connected()
+
+
+async def test_the_idle_close_still_starts_when_a_context_fails_to_open(pool, monkeypatch):
+    class Broken:
+        async def new_context(self, **_):
+            raise RuntimeError('context failed')
+
+    async def acquire():
+        return Broken()
+
+    monkeypatch.setattr(browser, '_acquire', acquire)
+    monkeypatch.setattr(browser, '_idle_close', None)
+    await pool.execute('insert into instagram_session (storage_state) values ($1)', {'cookies': [], 'origins': []})
+    with pytest.raises(RuntimeError, match='context failed'):
+        await browser.scrape_with_shared_browser(pool, idle_minutes=1)(URL)
+    closing = browser._idle_close
+    assert closing, 'the browser would stay up until the next job'
+    closing.cancel()
