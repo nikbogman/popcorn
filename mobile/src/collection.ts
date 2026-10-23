@@ -1,12 +1,9 @@
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { InferResponseType } from 'hono/client'
 
-import { api, parseResponse } from '@/api'
+import { api, parse, type Schemas } from '@/api'
 
-// Types come from the API's responses, so the app depends on the contract rather than the server's internals.
-const movieEndpoint = api.api.movies[':tmdbId'].$get
-const entryEndpoint = api.api.collection[':tmdbId']
-export type Status = NonNullable<InferResponseType<typeof movieEndpoint, 200>['status']>
+// Types come from the API's spec, so the app depends on the contract rather than the server's internals.
+export type Status = NonNullable<Schemas['Entry']['status']>
 /** To watch and Watched are the Collection filtered by Status, Favourites by Favourite. */
 export type Filter = { status: Status } | { favourite: true }
 /** `title` filters by title; newest first unless oldestFirst. */
@@ -23,7 +20,7 @@ const keys = {
 export function useMovie(tmdbId: string) {
   return useQuery({
     queryKey: keys.movie(tmdbId),
-    queryFn: () => parseResponse(movieEndpoint({ param: { tmdbId } })),
+    queryFn: () => parse(api.GET('/api/movies/{tmdb_id}', { params: { path: { tmdb_id: Number(tmdbId) } } })),
   })
 }
 
@@ -37,17 +34,16 @@ type EntryChange = { status: Status | null } | { favourite: boolean }
 export function useSetEntry(tmdbId: string, { onError }: { onError: () => void }) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (change: EntryChange) =>
-      parseResponse(
+    mutationFn: (change: EntryChange) => {
+      const params = { path: { tmdb_id: Number(tmdbId) } }
+      return parse(
         'status' in change
-          ? entryEndpoint.status.$put({ param: { tmdbId }, json: change })
-          : entryEndpoint.favourite.$put({ param: { tmdbId }, json: change }),
-      ),
-    onSuccess: (entry) => {
-      queryClient.setQueryData(
-        keys.movie(tmdbId),
-        (old: InferResponseType<typeof movieEndpoint, 200> | undefined) => old && { ...old, ...entry },
+          ? api.PUT('/api/collection/{tmdb_id}/status', { params, body: change })
+          : api.PUT('/api/collection/{tmdb_id}/favourite', { params, body: change }),
       )
+    },
+    onSuccess: (entry) => {
+      queryClient.setQueryData(keys.movie(tmdbId), (old: Schemas['MoviePage'] | undefined) => old && { ...old, ...entry })
       queryClient.invalidateQueries({ queryKey: keys.lists })
     },
     onError,
@@ -59,13 +55,15 @@ export function useCollectionList(filter: Filter, page: Page) {
   return useInfiniteQuery({
     queryKey: keys.list(filter, page),
     queryFn: ({ pageParam }) =>
-      parseResponse(
-        api.api.collection.$get({
-          query: {
-            ...('status' in filter ? { status: filter.status } : { favourite: 'true' }),
-            title: page.title,
-            order: page.oldestFirst ? 'oldest' : 'newest',
-            offset: String(pageParam),
+      parse(
+        api.GET('/api/collection', {
+          params: {
+            query: {
+              ...('status' in filter ? { status: filter.status } : { favourite: 'true' as const }),
+              title: page.title,
+              order: page.oldestFirst ? 'oldest' : 'newest',
+              offset: pageParam,
+            },
           },
         }),
       ),

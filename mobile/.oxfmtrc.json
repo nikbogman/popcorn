@@ -3,5 +3,5 @@
   "printWidth": 140,
   "semi": false,
   "singleQuote": true,
-  "ignorePatterns": ["apps/server/drizzle/**", "pnpm-lock.yaml", "designs/**", ".design/**", ".claude/**"]
+  "ignorePatterns": ["pnpm-lock.yaml", "src/api-types.ts"]
 }

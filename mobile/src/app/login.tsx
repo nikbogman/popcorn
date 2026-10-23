@@ -1,24 +1,22 @@
 import { Image } from 'expo-image'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 
-import { authClient } from '@/auth-client'
+import { logIn } from '@/api'
 import { colors, fonts } from '@/theme'
 
 export default function Login() {
-  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string>()
   const [pending, setPending] = useState(false)
-  const passwordRef = useRef<TextInput>(null)
 
-  async function logIn() {
+  async function submit() {
     setPending(true)
     setError(undefined)
-    // On success the session updates and the root layout's guard swaps in the tabs.
-    const { error: failure } = await authClient.signIn.email({ email: email.trim(), password })
+    // On success the token is stored and the root layout's guard swaps in the tabs.
+    const failure = await logIn(password)
     setPending(false)
-    if (failure) setError(failure.status === 401 ? 'Wrong email or password.' : (failure.message ?? "Couldn't log in."))
+    setError(failure)
   }
 
   return (
@@ -26,36 +24,16 @@ export default function Login() {
     <KeyboardAvoidingView style={styles.fill} behavior="padding">
       <Image source={require('../../assets/images/logo-halftone.png')} style={styles.logo} />
       <ScrollView contentContainerStyle={styles.screen} keyboardShouldPersistTaps="handled">
-        <View style={styles.brand}>
-          <Image
-            source={require('../../assets/images/wordmark.png')}
-            style={styles.wordmark}
-            accessibilityRole="header"
-            accessibilityLabel="popcorn"
-          />
-          <Text style={styles.tagline}>Your private movie log.</Text>
-        </View>
+        <Image
+          source={require('../../assets/images/wordmark.png')}
+          style={styles.wordmark}
+          accessibilityRole="header"
+          accessibilityLabel="popcorn"
+        />
         <View style={styles.form}>
-          <View style={styles.field}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              autoComplete="email"
-              keyboardType="email-address"
-              textContentType="username"
-              returnKeyType="next"
-              submitBehavior="submit"
-              onSubmitEditing={() => passwordRef.current?.focus()}
-              accessibilityLabel="Email"
-            />
-          </View>
           <View style={styles.field}>
             <Text style={styles.label}>Password</Text>
             <TextInput
-              ref={passwordRef}
               style={styles.input}
               value={password}
               onChangeText={setPassword}
@@ -63,15 +41,15 @@ export default function Login() {
               autoComplete="current-password"
               textContentType="password"
               returnKeyType="go"
-              onSubmitEditing={logIn}
+              onSubmitEditing={submit}
               accessibilityLabel="Password"
             />
           </View>
           {error && <Text style={styles.error}>{error}</Text>}
           <Pressable
             style={[styles.button, pending && { opacity: 0.6 }]}
-            onPress={logIn}
-            disabled={pending || !email || !password}
+            onPress={submit}
+            disabled={pending || !password}
             accessibilityRole="button"
           >
             <Text style={styles.buttonText}>Log in</Text>
@@ -86,9 +64,7 @@ const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: colors.background },
   logo: { position: 'absolute', top: -135, right: -160, width: 560, height: 560 },
   screen: { flexGrow: 1, justifyContent: 'flex-end', gap: 40, paddingHorizontal: 28, paddingTop: 24, paddingBottom: 56 },
-  brand: { gap: 8 },
   wordmark: { width: 250, aspectRatio: 2721 / 536 },
-  tagline: { fontFamily: fonts.regular, fontSize: 16, color: colors.muted },
   form: { gap: 20 },
   field: { gap: 8 },
   label: { fontFamily: fonts.medium, fontSize: 13, color: colors.muted },

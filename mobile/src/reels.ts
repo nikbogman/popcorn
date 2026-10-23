@@ -1,11 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { InferResponseType } from 'hono/client'
 
-import { api, parseResponse } from '@/api'
+import { api, parse, type Schemas } from '@/api'
 
-const reels = api.api.reels
 /** A reel shared to the app, and what it was found to show. */
-export type ReelRequest = InferResponseType<typeof reels.$get, 200>[number]
+export type ReelRequest = Schemas['ReelRequest']
 
 const key = ['reels'] as const
 
@@ -15,7 +13,7 @@ export const inProgress = (r: ReelRequest) => r.status === 'queued' || r.status 
 export function useRequests() {
   return useQuery({
     queryKey: key,
-    queryFn: () => parseResponse(reels.$get()),
+    queryFn: () => parse(api.GET('/api/reels')),
     refetchInterval: (q) => (q.state.data?.some(inProgress) ? 3000 : false),
   })
 }
@@ -24,7 +22,7 @@ export function useRequests() {
 export function useShareReel() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (url: string) => parseResponse(reels.$post({ json: { url } })),
+    mutationFn: (url: string) => parse(api.POST('/api/reels', { body: { url } })),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: key }),
   })
 }
@@ -33,7 +31,7 @@ export function useShareReel() {
 export function useRetry() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => parseResponse(reels[':id'].retry.$post({ param: { id } })),
+    mutationFn: (id: string) => parse(api.POST('/api/reels/{id}/retry', { params: { path: { id } } })),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: key }),
   })
 }

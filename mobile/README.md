@@ -1,6 +1,6 @@
 # Watcher mobile
 
-Expo app. Talks to `apps/server` through `EXPO_PUBLIC_API_URL`.
+Expo app. Talks to `server/` through `EXPO_PUBLIC_API_URL`.
 
 ## Develop
 
@@ -14,7 +14,7 @@ pnpm start
 
 The app ships as an APK built by EAS and installed directly. After that, JS changes arrive over the air through EAS Update, so the APK is only reinstalled when native code changes.
 
-Run EAS CLI as `npx eas-cli@latest <command>` from `apps/mobile`.
+Run EAS CLI as `npx eas-cli@latest <command>` from `mobile/`.
 
 ### Setup (done)
 

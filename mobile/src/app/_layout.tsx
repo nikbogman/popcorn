@@ -10,7 +10,7 @@ import { ShareIntentProvider } from 'expo-share-intent'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect } from 'react'
 
-import { authClient } from '@/auth-client'
+import { useToken } from '@/auth'
 import { colors } from '@/theme'
 
 SplashScreen.preventAutoHideAsync()
@@ -24,8 +24,8 @@ export default function RootLayout() {
     InstrumentSans_500Medium,
     InstrumentSans_600SemiBold,
   })
-  const { data: session, isPending } = authClient.useSession()
-  const ready = (fontsLoaded || !!fontError) && !isPending
+  const token = useToken()
+  const ready = (fontsLoaded || !!fontError) && token !== undefined
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync()
@@ -38,10 +38,10 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <StatusBar style="light" />
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
-          <Stack.Protected guard={!!session}>
+          <Stack.Protected guard={!!token}>
             <Stack.Screen name="(tabs)" />
           </Stack.Protected>
-          <Stack.Protected guard={!session}>
+          <Stack.Protected guard={!token}>
             <Stack.Screen name="login" />
           </Stack.Protected>
         </Stack>

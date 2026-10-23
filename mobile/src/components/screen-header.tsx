@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Svg, { Path } from 'react-native-svg'
 
-import { authClient } from '@/auth-client'
+import { logOut } from '@/api'
 import { colors, fonts } from '@/theme'
 
 export function ScreenHeader({ title, count, logout }: { title: string; count?: string; logout?: boolean }) {
@@ -14,8 +14,8 @@ export function ScreenHeader({ title, count, logout }: { title: string; count?: 
         {count && <Text style={styles.count}> {count}</Text>}
       </Text>
       {logout && (
-        // Signing out deletes the server session; the root guard then shows Login.
-        <Pressable style={styles.logout} onPress={() => authClient.signOut()} accessibilityRole="button" accessibilityLabel="Log out">
+        // Logging out ends the token on the server; the root guard then shows Login.
+        <Pressable style={styles.logout} onPress={logOut} accessibilityRole="button" accessibilityLabel="Log out">
           <Svg
             width={22}
             height={22}
