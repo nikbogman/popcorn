@@ -72,6 +72,7 @@ Finds which movie or TV show an Instagram reel is about. Prototype from [#14](ht
 - The first login from a new browser hit Instagram's email-code checkpoint once; the saved session has been reused since.
 - Keep concurrency at 2–3 at most; parallel sessions look most like a bot.
 - When the session expires, jobs fail with a hint to run `app.reels.login`. To reuse an exported Playwright session instead, pass its path: `python -m app.reels.login path/to/state.json`.
+- The session is stored in the database, not in the container. For the homelab, run the login on the dev machine (it opens a headed browser, which the image doesn't have), with `DATABASE_URL` set to the stack's tunnelled `LOCAL_DATABASE_URL`: `DATABASE_URL=<LOCAL_DATABASE_URL> uv run python -m app.reels.login`. Opening the tunnel and finding that URL are covered in [cloudberry's `stacks/README.md`](https://github.com/nikbogman/cloudberry/blob/main/stacks/README.md#popcorn).
 
 **Known issues**
 
