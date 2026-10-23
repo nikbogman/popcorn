@@ -1,9 +1,17 @@
 import functools
 from dataclasses import dataclass
+from typing import Annotated, Literal
 
 import httpx
+from fastapi import HTTPException, Path
+
+from .api import Api
 
 API = 'https://api.themoviedb.org/3'
+IMAGES = 'https://image.tmdb.org/t/p'
+SIZES = {'row': 'w185', 'page': 'w500'}
+
+TmdbId = Annotated[int, Path(gt=0, description='A TMDB movie id')]
 
 
 @dataclass
@@ -19,6 +27,30 @@ class Movie:
 @dataclass
 class MovieDetails(Movie):
     overview: str = ''
+
+
+def poster_url(path: str | None, use: Literal['row', 'page']):
+    return f'{IMAGES}/{SIZES[use]}{path}' if path else None
+
+
+class MovieSummary(Api):
+    """A list or search row as the app receives it."""
+
+    tmdb_id: int
+    title: str
+    year: int | None
+    poster_url: str | None
+
+
+def to_row(m: Movie):
+    return MovieSummary(tmdb_id=m.tmdb_id, title=m.title, year=m.year, poster_url=poster_url(m.poster_path, 'row'))
+
+
+def found[T](result: T | None) -> T:
+    """Unwraps a TMDB-backed result: None (unknown id) is a 404."""
+    if result is None:
+        raise HTTPException(404, 'Movie not found')
+    return result
 
 
 class TmdbUnreachable(Exception):

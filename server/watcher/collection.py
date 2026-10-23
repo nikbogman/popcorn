@@ -8,10 +8,11 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import StrictBool
 
 from .api import Api
-from .movies import Entry, MovieSummary, Status, TmdbId, found, to_row
-from .tmdb import Movie, Tmdb
+from .tmdb import Movie, MovieSummary, Tmdb, TmdbId, found, to_row
 
 PAGE_SIZE = 30
+
+Status = Literal['to_watch', 'watched']
 
 # collection_entry's columns and their Postgres types.
 COLUMNS = {
@@ -31,6 +32,14 @@ _PLACE = 'select status, added_at, watched_at, favourite from collection_entry w
 def now():
     """The clock every change reads. Tests replace it."""
     return datetime.now(UTC)
+
+
+class Entry(Api):
+    """A movie's place in the Collection. All empty when it isn't in it."""
+
+    status: Status | None
+    favourite: bool
+    watched_at: datetime | None
 
 
 @dataclass
