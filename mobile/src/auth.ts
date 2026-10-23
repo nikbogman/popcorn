@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store'
 import { useSyncExternalStore } from 'react'
 
-const KEY = 'watcher.token'
+const KEY = 'popcorn.token'
 
 // undefined while the stored token loads, null when signed out.
 let token: string | null | undefined

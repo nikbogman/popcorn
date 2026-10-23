@@ -6,13 +6,13 @@ Python 3.13, managed with [uv](https://docs.astral.sh/uv/).
 cp .env.example .env    # DATABASE_URL, LOGIN_PASSWORD (the app's one password), TMDB_API_KEY, GEMINI_API_KEY (free at aistudio.google.com/apikey)
 uv sync
 uv run playwright install chromium
-uv run --env-file .env python -m watcher               # http://localhost:3000 (or PORT); migrations run on start
-uv run --env-file .env python -m watcher.reels.login   # log in to Instagram in a browser; saves the session the reel scraper uses
+uv run --env-file .env python -m popcorn               # http://localhost:3000 (or PORT); migrations run on start
+uv run --env-file .env python -m popcorn.reels.login   # log in to Instagram in a browser; saves the session the reel scraper uses
 TEST_DATABASE_URL=postgres://… uv run pytest           # each run migrates a throwaway schema there and drops it
 ```
 
-- Schema changes: add the next `watcher/migrations/NNNN_*.sql`. Each runs once, in name order, recorded in `schema_migration`.
-- Route or shape changes: run `uv run python -m watcher.openapi`, then `pnpm api` in `mobile/`. A test fails while `openapi.json` is stale.
+- Schema changes: add the next `popcorn/migrations/NNNN_*.sql`. Each runs once, in name order, recorded in `schema_migration`.
+- Route or shape changes: run `uv run python -m popcorn.openapi`, then `pnpm api` in `mobile/`. A test fails while `openapi.json` is stale.
 - Lint and format: `uv run ruff format && uv run ruff check`.
 
 ## Deploy (homelab)
@@ -27,7 +27,7 @@ docker compose up -d --build
 
 `POST /api/auth/login { password }` checks `LOGIN_PASSWORD` and returns `{ token }`. Every other route needs `Authorization: Bearer <token>`. A token lasts 90 days from its last use; `POST /api/auth/logout` ends it. Only token hashes are stored (`auth_token`). Changing `LOGIN_PASSWORD` doesn't end existing tokens; `truncate auth_token` does.
 
-## Reel scraper (`watcher/reels`)
+## Reel scraper (`popcorn/reels`)
 
 Finds which movie or TV show an Instagram reel is about. Prototype from [#14](https://github.com/nikbogman/watchlist/issues/14).
 
@@ -35,7 +35,7 @@ Finds which movie or TV show an Instagram reel is about. Prototype from [#14](ht
 
 **How a job runs**
 
-1. Opens `instagram.com/p/<shortcode>/` in a shared headless Chromium, in a fresh context holding the saved session (`instagram_session` table, written by `watcher.reels.login`).
+1. Opens `instagram.com/p/<shortcode>/` in a shared headless Chromium, in a fresh context holding the saved session (`instagram_session` table, written by `popcorn.reels.login`).
 2. Reads the caption and comments from the JSON Instagram embeds in the page (~14 comments) and from the GraphQL responses it fetches as the comments panel is scrolled (~15 per page). Replies are skipped.
 3. Asks Gemini (`gemini-3.1-flash-lite`, free AI Studio key) for the title from the caption alone, then from the caption plus each new batch of 20 comments. Stops scrolling at the first answer that names one, at 200 comments, at the last page, or after 10s with no new comments.
 4. Matches a movie to TMDB by name and year (`reel.title.tmdbId`). TV shows stay unmatched.
@@ -64,7 +64,7 @@ Finds which movie or TV show an Instagram reel is about. Prototype from [#14](ht
 
 - The first login from a new browser hit Instagram's email-code checkpoint once; the saved session has been reused since.
 - Keep concurrency at 2–3 at most; parallel sessions look most like a bot.
-- When the session expires, jobs fail with a hint to run `watcher.reels.login`. To reuse an exported Playwright session instead, pass its path: `python -m watcher.reels.login path/to/state.json`.
+- When the session expires, jobs fail with a hint to run `popcorn.reels.login`. To reuse an exported Playwright session instead, pass its path: `python -m popcorn.reels.login path/to/state.json`.
 
 **Known issues**
 

@@ -108,7 +108,7 @@ def csv_routes(collection: Collection, tmdb: Tmdb):
         return Response(
             await export_csv(collection),
             media_type='text/csv; charset=utf-8',
-            headers={'content-disposition': 'attachment; filename="watcher.csv"'},
+            headers={'content-disposition': 'attachment; filename="popcorn.csv"'},
         )
 
     return router

@@ -1,4 +1,4 @@
-# Watcher
+# Popcorn
 
 Personal app for logging the movies I watch.
 

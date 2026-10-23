@@ -10,7 +10,7 @@ from playwright.async_api import BrowserContext, Response
 from ..api import iso
 from .reel import Comment, Reel
 
-LOGIN_HINT = 'run `uv run python -m watcher.reels.login` in server/'
+LOGIN_HINT = 'run `uv run python -m popcorn.reels.login` in server/'
 
 REEL_URL = re.compile(r'^https://(www\.)?instagram\.com/([\w.]+/)?(reels?|p)/(?P<shortcode>[\w-]+)')
 

@@ -4,8 +4,8 @@ from datetime import UTC, datetime
 
 import pytest
 
-from watcher.csv_io import to_csv
-from watcher.tmdb import Movie, MovieDetails
+from popcorn.csv_io import to_csv
+from popcorn.tmdb import Movie, MovieDetails
 
 HEADER = 'TMDB ID,Title,Year,Status,Favourite,Added,Watched'
 
@@ -63,7 +63,7 @@ async def test_exports_a_csv_the_import_reads_back(api, pool):
     await upload(api, CSV)
     res = await api.get('/api/collection/export')
     assert res.headers['content-type'].startswith('text/csv')
-    assert res.headers['content-disposition'] == 'attachment; filename="watcher.csv"'
+    assert res.headers['content-disposition'] == 'attachment; filename="popcorn.csv"'
     exported = res.text
     assert exported == '\r\n'.join(
         [

@@ -1,4 +1,4 @@
-# Watcher
+# Popcorn
 
 An all-in-one app for watching and tracking movies in my home setup.
 

@@ -6,10 +6,10 @@ import asyncpg
 import httpx
 import pytest
 
-from watcher import collection
-from watcher.app import create_app
-from watcher.db import connect
-from watcher.tmdb import MovieDetails, Tmdb, TmdbUnreachable
+from popcorn import collection
+from popcorn.app import create_app
+from popcorn.db import connect
+from popcorn.tmdb import MovieDetails, Tmdb, TmdbUnreachable
 
 PASSWORD = 'correct horse battery'
 

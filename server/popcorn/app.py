@@ -15,7 +15,7 @@ from .tmdb import Tmdb, TmdbUnreachable
 def create_app(pool: asyncpg.Pool, tmdb: Tmdb, password: str):
     collection = Collection(pool, tmdb)
     auth, require_token = create_auth(pool, password)
-    app = FastAPI(title='Watcher')
+    app = FastAPI(title='Popcorn')
 
     # Every failure has the same { error } shape; unexpected ones (e.g. the database) are a 500.
     @app.exception_handler(HTTPException)

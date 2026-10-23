@@ -1,4 +1,4 @@
-# Watcher mobile
+# Popcorn mobile
 
 Expo app. Talks to `server/` through `EXPO_PUBLIC_API_URL`.
 
