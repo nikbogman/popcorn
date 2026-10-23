@@ -19,6 +19,10 @@ async def test_requests_without_a_valid_token_are_refused(client):
     assert (await client.get('/api/reels', headers={'authorization': 'Bearer made-up'})).status_code == 401
 
 
+async def test_the_health_check_needs_no_token(client):
+    assert (await client.get('/healthz')).status_code == 200
+
+
 async def test_logging_out_ends_the_token(api):
     assert (await api.post('/api/auth/logout')).status_code == 204
     assert (await api.get('/api/reels')).status_code == 401

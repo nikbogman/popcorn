@@ -34,6 +34,11 @@ def create_app(pool: asyncpg.Pool, tmdb: Tmdb, password: str):
     async def internal(_: Request, e: Exception):
         return JSONResponse({'error': 'Internal error'}, 500)
 
+    # No auth. The server only listens once the pool is up and migrations have run, so answering at all means ready.
+    @app.get('/healthz')
+    async def healthz() -> None:
+        pass
+
     signed_in = [Depends(require_token)]
     app.include_router(auth, prefix='/api/auth')
     app.include_router(movie_routes(tmdb, collection), prefix='/api', dependencies=signed_in)

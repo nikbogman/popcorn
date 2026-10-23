@@ -42,6 +42,7 @@ async def main():
 
         stack.push_async_callback(stop_worker)
 
+        # Listens only now, after migrations, so the port being open means the server is ready.
         # 0.0.0.0 so a phone on the LAN can reach it.
         config = uvicorn.Config(create_app(pool, tmdb, password), host='0.0.0.0', port=int(os.environ.get('PORT', 3000)))
         await uvicorn.Server(config).serve()
