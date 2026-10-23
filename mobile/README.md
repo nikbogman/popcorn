@@ -1,6 +1,6 @@
 # Popcorn mobile
 
-Expo app. Talks to `server/` through `EXPO_PUBLIC_API_URL`.
+Expo app. Talks to `server/` through `EXPO_PUBLIC_API_URL`. The URL may include a path, e.g. `https://raspberry.<tailnet>.ts.net/popcorn` for the homelab: every request goes through the API client's `baseUrl`, which keeps the path. Posters are absolute TMDB URLs, and deep links use the `popcorn://` scheme, so neither depends on it.
 
 ## Develop
 
@@ -20,10 +20,10 @@ Run EAS CLI as `npx eas-cli@latest <command>` from `mobile/`.
 
 The project is linked to EAS project `@nikbogman/mobile`. `app.json` has the EAS project ID, `runtimeVersion` (policy `appVersion`) and `updates.url`. In `eas.json`, the `preview` profile builds an APK on channel `preview` using EAS environment `preview`. On a new machine you only need `npx eas-cli@latest login`.
 
-`.env` and `.env.local` are local only and never reach EAS. Builds and updates read `EXPO_PUBLIC_API_URL` from the EAS `preview` environment, which points at `https://watchlist-production-b79d.up.railway.app`. To change it:
+`.env` and `.env.local` are local only and never reach EAS. Builds and updates read `EXPO_PUBLIC_API_URL` from the EAS `preview` environment, which should point at the homelab, `https://raspberry.<tailnet>.ts.net/popcorn` (tailnet-only, so the phone needs Tailscale on). To change it:
 
 ```bash
-npx eas-cli@latest env:set preview --name EXPO_PUBLIC_API_URL --value https://<domain> --visibility plaintext
+npx eas-cli@latest env:set preview --name EXPO_PUBLIC_API_URL --value https://raspberry.<tailnet>.ts.net/popcorn --visibility plaintext
 ```
 
 Then publish an update. The value is inlined into the JS bundle, so no rebuild is needed.
