@@ -2,7 +2,7 @@
 
 The Expo app for [Popcorn](../README.md). It talks only to the [server](../server/README.md), at `EXPO_PUBLIC_API_URL`. Terms are defined in [CONTEXT.md](../CONTEXT.md).
 
-- `EXPO_PUBLIC_API_URL` may include a path, e.g. `https://raspberry.<tailnet>.ts.net/popcorn`. Every request goes through the API client's `baseUrl`, which keeps the path.
+- `EXPO_PUBLIC_API_URL` may include a path, e.g. `https://raspberry.tail22048f.ts.net/popcorn`. Every request goes through the API client's `baseUrl`, which keeps the path.
 - `src/api-types.ts` is generated: after a server route change, run `uv run python -m app.openapi` in `server/`, then `pnpm api` here.
 - Lint, format and typecheck: `pnpm format && pnpm lint && pnpm typecheck`.
 
@@ -24,10 +24,10 @@ Run EAS CLI as `npx eas-cli@latest <command>` from `mobile/`.
 
 The project is linked to EAS project `@nikbogman/mobile`. `app.json` has the EAS project ID, `runtimeVersion` (policy `appVersion`) and `updates.url`. In `eas.json`, the `preview` profile builds an APK on channel `preview` using EAS environment `preview`. On a new machine you only need `npx eas-cli@latest login`.
 
-`.env` and `.env.local` are local only and never reach EAS. Builds and updates read `EXPO_PUBLIC_API_URL` from the EAS `preview` environment, which should point at the homelab, `https://raspberry.<tailnet>.ts.net/popcorn` (tailnet-only, so the phone needs Tailscale on). To change it:
+`.env` and `.env.local` are local only and never reach EAS. Builds and updates read `EXPO_PUBLIC_API_URL` from the EAS `preview` environment, which points at the homelab, `https://raspberry.tail22048f.ts.net/popcorn` (tailnet-only, so the phone needs Tailscale on). To change it:
 
 ```bash
-npx eas-cli@latest env:set preview --name EXPO_PUBLIC_API_URL --value https://raspberry.<tailnet>.ts.net/popcorn --visibility plaintext
+npx eas-cli@latest env:set preview --name EXPO_PUBLIC_API_URL --value https://raspberry.tail22048f.ts.net/popcorn --visibility plaintext
 ```
 
 Then publish an update. The value is inlined into the JS bundle, so no rebuild is needed.
