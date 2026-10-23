@@ -4,10 +4,10 @@ import os
 import httpx
 import pytest
 
-from popcorn.reels.identify import Batches, create_identifier
-from popcorn.reels.queue import ReelQueue
-from popcorn.reels.reel import Comment, Reel, Title
-from popcorn.tmdb import Movie
+from app.reels.identify import Batches, create_identifier
+from app.reels.queue import ReelQueue
+from app.reels.reel import Comment, Reel, Title
+from app.tmdb import Movie
 
 URL = 'https://www.instagram.com/reel/DNBbfSkMPuy/'
 COMMENT = Comment(author='someone', text='what movie is this?', likes=3, created_at='2026-10-04T00:00:00.000Z')
@@ -259,7 +259,7 @@ LIVE_REEL = 'https://www.instagram.com/p/DNBbfSkMPuy/'
 async def scrape():
     from playwright.async_api import async_playwright
 
-    from popcorn.reels.scrape import scrape_reel
+    from app.reels.scrape import scrape_reel
 
     async with async_playwright() as p:
         browser = await p.chromium.launch()

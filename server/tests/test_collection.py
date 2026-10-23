@@ -3,8 +3,8 @@ from datetime import UTC, datetime, timedelta
 import asyncpg
 import pytest
 
-from popcorn.collection import PAGE_SIZE, Collection
-from popcorn.tmdb import Movie
+from app.collection import PAGE_SIZE, Collection
+from app.tmdb import Movie
 
 DAY1 = '2026-01-01T10:00:00Z'
 DAY2 = datetime(2026, 1, 2, 10, tzinfo=UTC)

@@ -6,10 +6,10 @@ import asyncpg
 import httpx
 import pytest
 
-from popcorn import collection
-from popcorn.app import create_app
-from popcorn.db import connect
-from popcorn.tmdb import MovieDetails, Tmdb, TmdbUnreachable
+from app import collection
+from app.db import connect
+from app.routes import create_app
+from app.tmdb import MovieDetails, Tmdb, TmdbUnreachable
 
 PASSWORD = 'correct horse battery'
 

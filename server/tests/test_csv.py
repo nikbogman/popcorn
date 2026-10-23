@@ -4,8 +4,8 @@ from datetime import UTC, datetime
 
 import pytest
 
-from popcorn.csv_io import to_csv
-from popcorn.tmdb import Movie, MovieDetails
+from app.csv_io import to_csv
+from app.tmdb import Movie, MovieDetails
 
 HEADER = 'TMDB ID,Title,Year,Status,Favourite,Added,Watched'
 

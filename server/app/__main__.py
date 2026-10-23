@@ -5,12 +5,12 @@ import os
 import httpx
 import uvicorn
 
-from .app import create_app
 from .db import connect
 from .env import env
 from .reels.browser import close_shared_browser, scrape_with_shared_browser
 from .reels.identify import Batches, create_identifier
 from .reels.queue import ReelQueue
+from .routes import create_app
 from .tmdb import Tmdb
 
 

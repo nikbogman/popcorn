@@ -1,6 +1,6 @@
 import pytest
 
-from popcorn.tmdb import Movie, MovieDetails
+from app.tmdb import Movie, MovieDetails
 
 HEAT = MovieDetails(3, 'Heat', 1995, '/heat.jpg', 'A heist.')
 

@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from .app import create_app
+from .routes import create_app
 
 FILE = Path(__file__).parent.parent / 'openapi.json'
 

@@ -1,7 +1,7 @@
 import httpx
 import pytest
 
-from popcorn.tmdb import Movie, MovieDetails, Tmdb, TmdbUnreachable
+from app.tmdb import Movie, MovieDetails, Tmdb, TmdbUnreachable
 
 
 def stub(body=None, status=200, raw: str | None = None):

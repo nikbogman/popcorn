@@ -10,5 +10,5 @@ RUN uv sync --frozen --no-dev
 # Chromium matching the installed Playwright, plus the system libraries it needs.
 RUN playwright install --with-deps chromium
 
-COPY popcorn popcorn
-CMD ["python", "-m", "popcorn"]
+COPY app app
+CMD ["python", "-m", "app"]

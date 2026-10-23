@@ -1,5 +1,5 @@
-from popcorn.openapi import FILE, spec
+from app.openapi import FILE, spec
 
 
 def test_openapi_json_matches_the_routes():
-    assert FILE.read_text() == spec(), 'run `uv run python -m popcorn.openapi`, then `pnpm api` in mobile/'
+    assert FILE.read_text() == spec(), 'run `uv run python -m app.openapi`, then `pnpm api` in mobile/'
