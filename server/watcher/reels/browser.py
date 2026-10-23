@@ -19,6 +19,15 @@ async def _shared_browser():
     return _browser
 
 
+async def close_shared_browser():
+    global _playwright, _browser
+    if _browser:
+        await _browser.close()
+    if _playwright:
+        await _playwright.stop()
+    _playwright = _browser = None
+
+
 def scrape_with_shared_browser(pool: asyncpg.Pool):
     """Scrapes in the shared browser, in a fresh context per reel holding the saved Instagram session."""
 

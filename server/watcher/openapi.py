@@ -10,7 +10,7 @@ FILE = Path(__file__).parent.parent / 'openapi.json'
 
 def spec():
     # The spec only reads the routes, so the app needs no database or TMDB.
-    return json.dumps(create_app(None, None, '').openapi(), indent=2) + '\n'
+    return json.dumps(create_app(None, None, '').openapi(), indent=2) + '\n'  # type: ignore
 
 
 if __name__ == '__main__':

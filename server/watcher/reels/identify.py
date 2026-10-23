@@ -1,9 +1,10 @@
 import json
 from collections.abc import Awaitable, Callable
+from operator import attrgetter
 
 import httpx
 
-from ..tmdb import Tmdb
+from ..tmdb import Movie
 from .reel import Reel, Title
 
 # Free tier on a Google AI Studio key. A small model is enough: the caption or comments usually name the title.
@@ -22,6 +23,7 @@ ANSWER = {
 }
 
 Identify = Callable[[Reel], Awaitable[Title | None]]
+Search = Callable[[str], Awaitable[list[Movie]]]
 
 
 def _prompt(reel: Reel):
@@ -32,7 +34,7 @@ def _prompt(reel: Reel):
             '',
             f'Caption: {reel.description or "(none)"}',
             'Comments, most liked first:',
-            *(f'- {c.text}' for c in sorted(reel.comments, key=lambda c: -c.likes)),
+            *(f'- {c.text}' for c in sorted(reel.comments, key=attrgetter('likes'), reverse=True)),
         ]
     )
 
@@ -67,9 +69,8 @@ class Batches:
         return self.title is not None
 
 
-def create_identifier(api_key: str, tmdb: Tmdb, transport: httpx.AsyncBaseTransport | None = None) -> Identify:
-    """Asks Gemini what the reel shows, then matches a movie to TMDB. None when the reel doesn't say."""
-    client = httpx.AsyncClient(transport=transport, timeout=60)
+def create_identifier(api_key: str, search: Search, client: httpx.AsyncClient) -> Identify:
+    """Asks Gemini what the reel shows, then matches a movie with `search` (TMDB's). None when the reel doesn't say."""
 
     async def identify(reel: Reel):
         res = await client.post(
@@ -79,23 +80,23 @@ def create_identifier(api_key: str, tmdb: Tmdb, transport: httpx.AsyncBaseTransp
                 'contents': [{'parts': [{'text': _prompt(reel)}]}],
                 'generationConfig': {'responseMimeType': 'application/json', 'responseJsonSchema': ANSWER},
             },
+            timeout=60,
         )
         if res.is_error:
             raise RuntimeError(f'Gemini failed with {res.status_code}: {res.text}')
         try:
-            text = res.json()['candidates'][0]['content']['parts'][0]['text']
-        except (KeyError, IndexError, ValueError):
-            raise RuntimeError('Gemini returned no answer') from None
-        answer = json.loads(text)
-        name, year, kind = answer['name'], answer['year'], answer['kind']
-        if not answer['found'] or not name:
+            answer = json.loads(res.json()['candidates'][0]['content']['parts'][0]['text'])
+            found, name, year, kind = answer['found'], answer['name'], answer['year'], answer['kind']
+        except (KeyError, IndexError, TypeError, ValueError):
+            raise RuntimeError('Gemini returned no usable answer') from None
+        if not found or not name:
             return None
 
-        # ponytail: the Tmdb client only searches movies, so TV shows stay unmatched.
+        # ponytail: TMDB is only searched for movies, so TV shows stay unmatched.
         if kind == 'tv':
             return Title(name=name, year=year, kind=kind, tmdb_id=None)
         # ponytail: first search result with Gemini's year (any result when it gave none); no fuzzy title match.
-        match = next((m for m in await tmdb.search(name) if year is None or m.year == year), None)
+        match = next((m for m in await search(name) if year is None or m.year == year), None)
         if match:
             return Title(name=match.title, year=match.year, kind=kind, tmdb_id=match.tmdb_id)
         return Title(name=name, year=year, kind=kind, tmdb_id=None)

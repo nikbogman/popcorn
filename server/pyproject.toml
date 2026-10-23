@@ -20,7 +20,9 @@ line-length = 140
 quote-style = "single"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "ASYNC"]
+# id is the natural name for a row id; shadowing the builtin is harmless there.
+flake8-builtins.builtins-ignorelist = ["id"]
+select = ["E", "F", "I", "UP", "B", "ASYNC", "A", "SIM", "RUF"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -33,4 +35,5 @@ dev = [
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "ruff>=0.17.2",
+    "ty>=0.0.91",
 ]

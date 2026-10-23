@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import json
 import re
 from collections.abc import Awaitable, Callable
@@ -6,6 +7,7 @@ from datetime import UTC, datetime
 
 from playwright.async_api import BrowserContext, Response
 
+from ..api import iso
 from .reel import Comment, Reel
 
 LOGIN_HINT = 'run `uv run python -m watcher.reels.login` in server/'
@@ -23,9 +25,6 @@ PANEL_CENTER = """() => {
   const r = el?.getBoundingClientRect()
   return r && { x: r.x + r.width / 2, y: r.y + r.height / 2 }
 }"""
-
-
-_UNSEEN = object()
 
 
 def shortcode_of(url: str):
@@ -48,13 +47,14 @@ async def scrape_reel(context: BrowserContext, url: str, max_comments=200, until
     page = await context.new_page()
     try:
         comments: dict[str, Comment] = {}
-        # _UNSEEN = caption not seen in any payload; None = the reel has no caption.
-        description = _UNSEEN
+        # Once seen in a payload, None means the reel has no caption.
+        caption_seen = False
+        description: str | None = None
         has_next_page = True
 
         # Instagram embeds the first page in the HTML document and fetches later pages as GraphQL JSON.
         async def collect(res: Response):
-            nonlocal description, has_next_page
+            nonlocal caption_seen, description, has_next_page
             if not re.search(r'instagram\.com/(graphql|api|p/|reels?/)', res.url):
                 return
             try:
@@ -63,7 +63,8 @@ async def scrape_reel(context: BrowserContext, url: str, max_comments=200, until
                 return
             for payload in _json_payloads(body):
                 for node in _walk(payload):
-                    if node.get('code') == shortcode and 'caption' in node and description is _UNSEEN:
+                    if node.get('code') == shortcode and 'caption' in node and not caption_seen:
+                        caption_seen = True
                         description = (node['caption'] or {}).get('text')
                     connection = node.get('xdt_api__v1__media__media_id__comments__connection')
                     if not connection:
@@ -77,13 +78,11 @@ async def scrape_reel(context: BrowserContext, url: str, max_comments=200, until
                             author=c['user']['username'],
                             text=c['text'],
                             likes=c.get('comment_like_count') or 0,
-                            created_at=datetime.fromtimestamp(c['created_at'], UTC)
-                            .isoformat(timespec='milliseconds')
-                            .replace('+00:00', 'Z'),
+                            created_at=iso(datetime.fromtimestamp(c['created_at'], UTC)),
                         )
 
         pending: list[asyncio.Task] = []
-        page.on('response', lambda res: pending.append(asyncio.ensure_future(collect(res))))
+        page.on('response', lambda res: pending.append(asyncio.create_task(collect(res))))
 
         async def settle():
             # Waits for every response seen so far, including ones that arrive while waiting.
@@ -93,7 +92,7 @@ async def scrape_reel(context: BrowserContext, url: str, max_comments=200, until
                 await asyncio.gather(*batch)
 
         async def reel_so_far():
-            if description is not _UNSEEN:
+            if caption_seen:
                 caption = description
             else:
                 try:
@@ -140,10 +139,8 @@ def _json_payloads(body: str):
     else:
         sources = body.split('\n')  # GraphQL can stream several JSON objects, one per line
     for s in sources:
-        try:
+        with contextlib.suppress(ValueError):
             yield json.loads(s)
-        except ValueError:
-            pass
 
 
 def _walk(value):

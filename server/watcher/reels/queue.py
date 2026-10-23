@@ -17,12 +17,8 @@ Scrape = Callable[[str], Awaitable[Reel]]
 
 JobStatus = Literal['queued', 'running', 'done', 'failed']
 
-
-def _uuid(id: str):
-    try:
-        return uuid.UUID(id)
-    except ValueError:
-        return None
+# GET /api/reels returns the newest this many.
+LIST_LIMIT = 100
 
 
 class ReelRequest(Api):
@@ -70,42 +66,43 @@ class ReelQueue:
             )
         return True
 
-    async def retry(self, id: str):
+    async def retry(self, id: uuid.UUID) -> bool:
         """Queues a failed scrape again. False when there is no failed scrape with that id."""
         return bool(
-            _uuid(id)
-            and await self.pool.fetchval(
+            await self.pool.fetchval(
                 "update reel_scrape set status = 'queued', error = null, updated_at = now() "
                 "where id = $1 and status = 'failed' returning true",
-                _uuid(id),
+                id,
             )
         )
 
-    async def enqueue(self, url: str):
+    async def enqueue(self, url: str) -> uuid.UUID | None:
         """Queues a scrape. Returns its id, or None when the URL isn't an Instagram reel or post."""
         shortcode = shortcode_of(url)
         if not shortcode:
             return None
         # One scrape per reel: sharing it again moves it to the top of the list, and re-queues it if it failed.
-        # ponytail: check-then-insert can race into a duplicate; a unique index on url fixes that if it matters.
-        canonical = f'https://www.instagram.com/p/{shortcode}/'
-        existing = await self.pool.fetchval('select id from reel_scrape where url = $1', canonical)
-        if existing:
-            await self.retry(str(existing))
-            await self.pool.execute('update reel_scrape set created_at = now() where id = $1', existing)
-            return existing
-        return await self.pool.fetchval('insert into reel_scrape (url) values ($1) returning id', canonical)
+        return await self.pool.fetchval(
+            """insert into reel_scrape (url) values ($1)
+            on conflict (url) do update set
+              created_at = now(),
+              updated_at = now(),
+              status = case when reel_scrape.status = 'failed' then 'queued' else reel_scrape.status end,
+              error = case when reel_scrape.status = 'failed' then null else reel_scrape.error end
+            returning id""",
+            f'https://www.instagram.com/p/{shortcode}/',
+        )
 
-    async def list(self):
-        """Every scrape, newest shared first."""
+    async def list(self) -> list[ReelRequest]:
+        """The newest LIST_LIMIT scrapes, newest shared first."""
         rows = await self.pool.fetch(
-            "select id, url, status, reel->'title' title, error, created_at from reel_scrape order by created_at desc"
+            "select id, url, status, reel->'title' title, error, created_at from reel_scrape order by created_at desc limit $1", LIST_LIMIT
         )
         return [ReelRequest.model_validate(dict(r)) for r in rows]
 
-    async def job(self, id: str):
+    async def job(self, id: uuid.UUID) -> Job | None:
         """None for an unknown id."""
-        row = _uuid(id) and await self.pool.fetchrow('select status, reel, error from reel_scrape where id = $1', _uuid(id))
+        row = await self.pool.fetchrow('select status, reel, error from reel_scrape where id = $1', id)
         return Job.model_validate(dict(row)) if row else None
 
     async def work(self, scrape: Scrape):
@@ -132,7 +129,7 @@ class Queued(Api):
 
 
 def reel_routes(queue: ReelQueue):
-    """POST a reel URL to queue a scrape, then poll GET /{id} until its status is done or failed. GET lists them all."""
+    """POST a reel URL to queue a scrape, then poll GET /{id} until its status is done or failed. GET lists the newest."""
     router = APIRouter()
 
     @router.post('', status_code=202)
@@ -147,12 +144,12 @@ def reel_routes(queue: ReelQueue):
         return await queue.list()
 
     @router.post('/{id}/retry', status_code=202)
-    async def retry(id: str) -> None:
+    async def retry(id: uuid.UUID) -> None:
         if not await queue.retry(id):
             raise HTTPException(404, 'No failed scrape with that id')
 
     @router.get('/{id}')
-    async def job(id: str) -> Job:
+    async def job(id: uuid.UUID) -> Job:
         job = await queue.job(id)
         if not job:
             raise HTTPException(404, 'Scrape not found')

@@ -86,6 +86,18 @@ async def test_a_csv_in_another_format_is_refused(api):
     assert res.json() == {'error': f"The CSV's header must be {HEADER}"}
 
 
+async def test_reads_a_csv_starting_with_a_byte_order_mark(api):
+    res = await api.post('/api/collection/import', content=('﻿' + CSV).encode(), headers={'content-type': 'text/csv'})
+    assert res.json()['added'] == 3
+
+
+async def test_a_csv_that_is_not_utf8_is_refused(api):
+    res = await api.post(
+        '/api/collection/import', content=CSV.replace('Alien', 'Alién').encode('latin-1'), headers={'content-type': 'text/csv'}
+    )
+    assert (res.status_code, res.json()) == (400, {'error': 'The CSV must be UTF-8'})
+
+
 async def test_import_and_export_need_a_token(client, pool):
     assert (await upload(client, CSV)).status_code == 401
     assert (await client.get('/api/collection/export')).status_code == 401

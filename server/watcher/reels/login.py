@@ -12,7 +12,8 @@ from ..env import env
 
 
 async def main():
-    pool = await connect(env('DATABASE_URL')['DATABASE_URL'])
+    [database_url] = env('DATABASE_URL')
+    pool = await connect(database_url)
     if len(sys.argv) > 1:
         storage_state = json.loads(Path(sys.argv[1]).read_text())  # noqa: ASYNC240 - a one-shot script, nothing else is running
     else:

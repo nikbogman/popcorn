@@ -4,9 +4,10 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Request, Response
 
-from .api import Api
-from .collection import Collection, NewEntry
-from .tmdb import Tmdb
+from . import collection as rules  # rules.now(), read through the module so tests' clock applies
+from .api import Api, iso
+from .collection import Collection, Place
+from .tmdb import Movie, Tmdb
 
 HEADER = ['TMDB ID', 'Title', 'Year', 'Status', 'Favourite', 'Added', 'Watched']
 
@@ -16,10 +17,6 @@ def to_csv(header: list[str], rows: list[list[str]]):
     out = io.StringIO()
     csv.writer(out, lineterminator='\r\n').writerows([header, *rows])
     return out.getvalue()
-
-
-def _iso(d: datetime):
-    return d.astimezone(UTC).isoformat(timespec='milliseconds').replace('+00:00', 'Z')
 
 
 async def export_csv(collection: Collection):
@@ -33,8 +30,8 @@ async def export_csv(collection: Collection):
                 '' if e['year'] is None else str(e['year']),
                 e['status'],
                 str(e['favourite']).lower(),
-                _iso(e['added_at']),
-                _iso(e['watched_at']) if e['watched_at'] else '',
+                iso(e['added_at']),
+                iso(e['watched_at']) if e['watched_at'] else '',
             ]
             for e in await collection.all()
         ],
@@ -59,16 +56,16 @@ async def import_csv(collection: Collection, tmdb: Tmdb, text: str):
     """
     Adds the CSV's movies to the Collection. A row is matched by TMDB ID, else by title and year.
     Watched if it has a Watched date, Status watched or is a Favourite. Movies already in it are left alone, so it is safe to rerun.
-    Rows with an unreadable TMDB ID, year or date are skipped and reported as invalid.
+    Rows with an unreadable TMDB ID, year or date are skipped and reported as invalid. Raises ValueError for another format.
     """
     reader = csv.DictReader(io.StringIO(text), restval='')
     rows = list(reader)
     if rows and not set(HEADER) <= set(reader.fieldnames or []):
-        raise HTTPException(400, f"The CSV's header must be {','.join(HEADER)}")
-    at = datetime.now(UTC)
+        raise ValueError(f"The CSV's header must be {','.join(HEADER)}")
+    at = rules.now()
     not_found: list[str] = []
     invalid: list[str] = []
-    entries: list[NewEntry] = []
+    entries: list[tuple[Movie, Place]] = []
     for r in rows:
         name = f'{r["Title"]} ({r["Year"]})'
         favourite = r['Favourite'] == 'true'
@@ -83,7 +80,8 @@ async def import_csv(collection: Collection, tmdb: Tmdb, text: str):
         # ponytail: without a TMDB ID, exact title + year match on TMDB's first page, else skipped and reported
         movie = await tmdb.details(tmdb_id) if tmdb_id else next((m for m in await tmdb.search(r['Title']) if m.year == year), None)
         if movie:
-            entries.append(NewEntry(movie, added_at, watched_at, favourite))
+            place = Place('watched', added_at, watched_at, favourite) if watched_at else Place.to_watch(added_at)
+            entries.append((movie, place))
         else:
             not_found.append(name)
     return ImportResult(movies=len(rows), added=await collection.add(entries), not_found=not_found, invalid=invalid)
@@ -95,7 +93,15 @@ def csv_routes(collection: Collection, tmdb: Tmdb):
 
     @router.post('/import', openapi_extra={'requestBody': {'content': {'text/csv': {'schema': {'type': 'string'}}}, 'required': True}})
     async def import_collection(request: Request) -> ImportResult:
-        return await import_csv(collection, tmdb, (await request.body()).decode())
+        try:
+            # utf-8-sig drops the byte order mark Excel and Numbers start their CSVs with.
+            text = (await request.body()).decode('utf-8-sig')
+        except UnicodeDecodeError:
+            raise HTTPException(400, 'The CSV must be UTF-8') from None
+        try:
+            return await import_csv(collection, tmdb, text)
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
 
     @router.get('/export', response_class=Response, responses={200: {'content': {'text/csv': {'schema': {'type': 'string'}}}}})
     async def export_collection():

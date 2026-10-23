@@ -74,7 +74,7 @@ def movie_routes(tmdb: Tmdb, collection: Collection):
             year=m.year,
             poster_url=poster_url(m.poster_path, 'page'),
             overview=m.overview,
-            **dict(entry),
+            **entry.model_dump(),
         )
 
     return router

@@ -1,5 +1,5 @@
 import re
-from dataclasses import dataclass
+from dataclasses import asdict, astuple, dataclass, replace
 from datetime import UTC, datetime
 from typing import Literal
 
@@ -13,6 +13,20 @@ from .tmdb import Movie, Tmdb
 
 PAGE_SIZE = 30
 
+# collection_entry's columns and their Postgres types.
+COLUMNS = {
+    'tmdb_id': 'int',
+    'title': 'text',
+    'year': 'int',
+    'poster_path': 'text',
+    'status': 'text',
+    'added_at': 'timestamptz',
+    'watched_at': 'timestamptz',
+    'favourite': 'bool',
+}
+
+_PLACE = 'select status, added_at, watched_at, favourite from collection_entry where tmdb_id = $1'
+
 
 def now():
     """The clock every change reads. Tests replace it."""
@@ -20,39 +34,38 @@ def now():
 
 
 @dataclass
-class NewEntry:
-    """A movie arriving with its history, e.g. from an import.
-    Watched if watched_at is set, else To watch; only a Watched movie can be a Favourite."""
+class Place:
+    """A movie's place in the Collection, as stored. Watched iff watched_at is set; only a Watched movie can be a Favourite."""
 
-    movie: Movie
+    status: Status
     added_at: datetime
-    watched_at: datetime | None
-    favourite: bool
+    watched_at: datetime | None = None
+    favourite: bool = False
+
+    @staticmethod
+    def to_watch(at: datetime):
+        return Place('to_watch', at)
+
+    @staticmethod
+    def watched(current: 'Place | None', at: datetime, favourite=False):
+        """Watched at `at`, keeping when it was added if it was already in the Collection."""
+        return Place('watched', current.added_at if current else at, at, favourite)
+
+    @staticmethod
+    def of(row: asyncpg.Record | None):
+        return Place(row['status'], row['added_at'], row['watched_at'], row['favourite']) if row else None
 
 
-def _entry(row: dict | None):
-    return Entry(
-        status=row['status'] if row else None,
-        favourite=row['favourite'] if row else False,
-        watched_at=row['watched_at'] if row else None,
-    )
+def _entry(place: Place | None):
+    if place is None:
+        return Entry(status=None, favourite=False, watched_at=None)
+    return Entry(status=place.status, favourite=place.favourite, watched_at=place.watched_at)
 
 
-def _to_watch(at: datetime):
-    return {'status': 'to_watch', 'added_at': at, 'watched_at': None, 'favourite': False}
-
-
-def _watched(current: dict | None, at: datetime, favourite=False):
-    return {'status': 'watched', 'added_at': current['added_at'] if current else at, 'watched_at': at, 'favourite': favourite}
-
-
-def _row(movie: Movie, entry: dict):
+def _values(movie: Movie, place: Place):
     # The movie is copied in once, never refreshed.
-    return {'tmdb_id': movie.tmdb_id, 'title': movie.title, 'year': movie.year, 'poster_path': movie.poster_path, **entry}
-
-
-COLUMNS = ['tmdb_id', 'title', 'year', 'poster_path', 'status', 'added_at', 'watched_at', 'favourite']
-TYPES = ['int', 'text', 'int', 'text', 'text', 'timestamptz', 'timestamptz', 'bool']
+    row = {'tmdb_id': movie.tmdb_id, 'title': movie.title, 'year': movie.year, 'poster_path': movie.poster_path, **asdict(place)}
+    return [row[c] for c in COLUMNS]
 
 
 class Collection:
@@ -62,86 +75,69 @@ class Collection:
         self.pool = pool
         self.tmdb = tmdb
 
-    async def _find(self, tmdb_id: int):
-        row = await self.pool.fetchrow('select * from collection_entry where tmdb_id = $1', tmdb_id)
-        return dict(row) if row else None
-
-    async def _drop(self, tmdb_id: int):
-        await self.pool.execute('delete from collection_entry where tmdb_id = $1', tmdb_id)
-        return _entry(None)
-
-    async def _update(self, tmdb_id: int, entry: dict):
-        await self.pool.execute(
-            'update collection_entry set status = $2, added_at = $3, watched_at = $4, favourite = $5 where tmdb_id = $1',
-            tmdb_id,
-            entry['status'],
-            entry['added_at'],
-            entry['watched_at'],
-            entry['favourite'],
-        )
-        return _entry(entry)
-
-    async def _create(self, tmdb_id: int, entry: dict):
-        """None if TMDB doesn't know the id."""
+    async def _save(self, conn: asyncpg.Connection, tmdb_id: int, current: Place | None, place: Place):
+        """Writes `place` over `current`. None if the movie is new to the Collection and TMDB doesn't know the id."""
+        if current:
+            await conn.execute(
+                'update collection_entry set status = $2, added_at = $3, watched_at = $4, favourite = $5 where tmdb_id = $1',
+                tmdb_id,
+                *astuple(place),
+            )
+            return _entry(place)
         movie = await self.tmdb.details(tmdb_id)
         if movie is None:
             return None
-        await self.add_rows([_row(movie, entry)])
-        return _entry(entry)
+        # A concurrent request may have added it meanwhile; the later write wins.
+        await conn.execute(
+            f'insert into collection_entry ({", ".join(COLUMNS)}) values ($1, $2, $3, $4, $5, $6, $7, $8) on conflict (tmdb_id) do update '
+            'set status = excluded.status, added_at = excluded.added_at, watched_at = excluded.watched_at, favourite = excluded.favourite',
+            *_values(movie, place),
+        )
+        return _entry(place)
 
-    async def entry(self, tmdb_id: int):
-        return _entry(await self._find(tmdb_id))
+    async def entry(self, tmdb_id: int) -> Entry:
+        return _entry(Place.of(await self.pool.fetchrow(_PLACE, tmdb_id)))
 
-    async def set_status(self, tmdb_id: int, status: Status | None):
-        """None drops the entry."""
+    async def set_status(self, tmdb_id: int, status: Status | None) -> Entry | None:
+        """None drops the entry. None back if TMDB doesn't know the id."""
         if status is None:
-            return await self._drop(tmdb_id)
-        current = await self._find(tmdb_id)
-        if current and current['status'] == status:
-            return _entry(current)
-        nxt = _to_watch(now()) if status == 'to_watch' else _watched(current, now())
-        return await self._update(tmdb_id, nxt) if current else await self._create(tmdb_id, nxt)
+            await self.pool.execute('delete from collection_entry where tmdb_id = $1', tmdb_id)
+            return _entry(None)
+        async with self.pool.acquire() as conn, conn.transaction():
+            current = Place.of(await conn.fetchrow(f'{_PLACE} for update', tmdb_id))
+            if current and current.status == status:
+                return _entry(current)
+            place = Place.to_watch(now()) if status == 'to_watch' else Place.watched(current, now())
+            return await self._save(conn, tmdb_id, current, place)
 
-    async def set_favourite(self, tmdb_id: int, favourite: bool):
-        current = await self._find(tmdb_id)
-        if current and current['status'] == 'watched':
-            return await self._update(tmdb_id, {**current, 'favourite': favourite})
-        # Not Watched, so there is no Favourite to clear.
-        if not favourite:
-            return _entry(current)
-        # Favouriting a movie that isn't Watched marks it Watched.
-        nxt = _watched(current, now(), True)
-        return await self._update(tmdb_id, nxt) if current else await self._create(tmdb_id, nxt)
+    async def set_favourite(self, tmdb_id: int, favourite: bool) -> Entry | None:
+        """None if TMDB doesn't know the id."""
+        async with self.pool.acquire() as conn, conn.transaction():
+            current = Place.of(await conn.fetchrow(f'{_PLACE} for update', tmdb_id))
+            if current and current.status == 'watched':
+                return await self._save(conn, tmdb_id, current, replace(current, favourite=favourite))
+            # Not Watched, so there is no Favourite to clear.
+            if not favourite:
+                return _entry(current)
+            # Favouriting a movie that isn't Watched marks it Watched.
+            return await self._save(conn, tmdb_id, current, Place.watched(current, now(), True))
 
-    async def add_rows(self, rows: list[dict]):
-        """Inserts rows, leaving movies already in the Collection alone. Returns how many were added."""
+    async def add(self, entries: list[tuple[Movie, Place]]) -> int:
+        """Adds movies with the places they came with, leaving movies already in the Collection alone. Returns how many were added."""
+        rows = [_values(movie, place) for movie, place in entries]
         # One array per column, so any number of rows is one statement.
-        arrays = ', '.join(f'${i + 1}::{t}[]' for i, t in enumerate(TYPES))
+        arrays = ', '.join(f'${i + 1}::{t}[]' for i, t in enumerate(COLUMNS.values()))
         added = await self.pool.fetch(
             f'insert into collection_entry ({", ".join(COLUMNS)}) select * from unnest({arrays}) on conflict do nothing returning tmdb_id',
-            *([r[c] for r in rows] for c in COLUMNS),
+            *([r[i] for r in rows] for i in range(len(COLUMNS))),
         )
         return len(added)
-
-    async def add(self, entries: list[NewEntry]):
-        """Adds movies with the dates they came with, leaving movies already in the Collection alone. Returns how many were added."""
-        return await self.add_rows(
-            [
-                _row(
-                    e.movie,
-                    {'status': 'watched', 'added_at': e.added_at, 'watched_at': e.watched_at, 'favourite': e.favourite}
-                    if e.watched_at
-                    else _to_watch(e.added_at),
-                )
-                for e in entries
-            ]
-        )
 
     async def all(self):
         """Every entry, oldest added first."""
         return await self.pool.fetch('select * from collection_entry order by added_at, tmdb_id')
 
-    async def page(self, status: Status | None, title='', oldest_first=False, offset=0):
+    async def page(self, status: Status | None, title='', oldest_first=False, offset=0) -> 'CollectionPage':
         """
         A Status's movies, or with status None the Favourites. Newest first unless oldest_first.
         `total` counts the whole list, `matching` only the titles containing `title`.
@@ -155,6 +151,7 @@ class Collection:
         counts = await self.pool.fetchrow(
             f'select count(*) total, count(*) filter (where {search}) matching from collection_entry where {where}', status, pattern
         )
+        assert counts
         # tmdb_id breaks date ties so pages never overlap.
         rows = await self.pool.fetch(
             f'select * from collection_entry where {search} order by {date} {direction}, tmdb_id {direction} limit $3 offset $4',

@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import secrets
+from datetime import timedelta
 from typing import Annotated
 
 import asyncpg
@@ -10,7 +11,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from .api import Api
 
 # A token unused for this long stops working. Each use pushes it back.
-TTL = "interval '90 days'"
+TTL = timedelta(days=90)
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -33,7 +34,9 @@ def create_auth(pool: asyncpg.Pool, password: str):
     async def require_token(credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)]):
         token = credentials.credentials if credentials else ''
         if not await pool.fetchval(
-            f'update auth_token set expires_at = now() + {TTL} where token_hash = $1 and expires_at > now() returning true', _hash(token)
+            'update auth_token set expires_at = now() + $2::interval where token_hash = $1 and expires_at > now() returning true',
+            _hash(token),
+            TTL,
         ):
             raise HTTPException(401, 'Unauthorized')
         return token
@@ -47,7 +50,7 @@ def create_auth(pool: asyncpg.Pool, password: str):
             raise HTTPException(401, 'Wrong password')
         token = secrets.token_urlsafe(32)
         await pool.execute('delete from auth_token where expires_at <= now()')
-        await pool.execute(f'insert into auth_token (token_hash, expires_at) values ($1, now() + {TTL})', _hash(token))
+        await pool.execute('insert into auth_token (token_hash, expires_at) values ($1, now() + $2::interval)', _hash(token), TTL)
         return Token(token=token)
 
     @router.post('/logout', status_code=204)

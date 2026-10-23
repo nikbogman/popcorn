@@ -53,6 +53,9 @@ class Tmdb:
     def __init__(self, api_key: str, transport: httpx.AsyncBaseTransport | None = None):
         self._client = httpx.AsyncClient(base_url=API, params={'api_key': api_key}, transport=transport, timeout=10)
 
+    async def aclose(self):
+        await self._client.aclose()
+
     async def _get(self, path: str, **params) -> dict | None:
         res = await self._client.get(path, params=params)
         if res.status_code == 404:
@@ -62,7 +65,7 @@ class Tmdb:
 
     @_unreachable
     async def search(self, query: str) -> list[Movie]:
-        body = await self._get('/search/movie', query=query, include_adult='false')
+        body = await self._get('/search/movie', query=query, include_adult='false') or {}
         return [Movie(m['id'], m['title'], _year(m.get('release_date')), m['poster_path']) for m in body['results'] if not m.get('adult')]
 
     @_unreachable

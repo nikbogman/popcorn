@@ -127,20 +127,19 @@ async def test_retries_a_failed_request_and_only_a_failed_one(api, queue):
     await queue.run_next(failing)
     assert (await api.post(f'/api/reels/{id}/retry')).status_code == 202
     assert await poll(api, id) == {'status': 'queued', 'reel': None, 'error': None}
-    assert (await api.post('/api/reels/not-a-uuid/retry')).status_code == 404
+    assert (await api.post('/api/reels/not-a-uuid/retry')).status_code == 400
 
 
 async def test_404s_an_unknown_scrape(api):
     assert (await api.get('/api/reels/00000000-0000-0000-0000-000000000000')).status_code == 404
-    assert (await api.get('/api/reels/not-a-uuid')).status_code == 404
+    assert (await api.get('/api/reels/not-a-uuid')).status_code == 400
 
 
 # Identifying
 
 
-class SearchHeat:
-    async def search(self, query: str):
-        return [Movie(2, 'Heat', 1986, None), Movie(949, 'Heat', 1995, None)]
+async def search_heat(query: str):
+    return [Movie(2, 'Heat', 1986, None), Movie(949, 'Heat', 1995, None)]
 
 
 def gemini(answer: dict | None = None, status=200):
@@ -152,7 +151,7 @@ def gemini(answer: dict | None = None, status=200):
             return httpx.Response(status, text='quota exceeded')
         return httpx.Response(200, json={'candidates': [{'content': {'parts': [{'text': json.dumps(answer)}]}}]})
 
-    return create_identifier('KEY', SearchHeat(), httpx.MockTransport(handle)), sent
+    return create_identifier('KEY', search_heat, httpx.AsyncClient(transport=httpx.MockTransport(handle))), sent
 
 
 TWO_COMMENTS = Reel(

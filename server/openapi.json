@@ -516,6 +516,7 @@
             "required": true,
             "schema": {
               "type": "string",
+              "format": "uuid",
               "title": "Id"
             }
           }
@@ -558,6 +559,7 @@
             "required": true,
             "schema": {
               "type": "string",
+              "format": "uuid",
               "title": "Id"
             }
           }

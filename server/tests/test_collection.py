@@ -223,7 +223,7 @@ async def test_a_database_failure_is_a_500_not_a_tmdb_error(api, monkeypatch):
     async def broken(*args):
         raise asyncpg.PostgresError('connection lost')
 
-    monkeypatch.setattr(Collection, '_find', broken)
+    monkeypatch.setattr(Collection, '_save', broken)
     res = await change(api, 3, TO_WATCH)
     assert res.status_code == 500
     assert res.json() == {'error': 'Internal error'}
