@@ -3,7 +3,8 @@
 Python 3.13, managed with [uv](https://docs.astral.sh/uv/).
 
 ```sh
-cp .env.example .env    # DATABASE_URL, LOGIN_PASSWORD (the app's one password), TMDB_API_KEY, GEMINI_API_KEY (free at aistudio.google.com/apikey)
+cp .env.example .env    # DATABASE_URL, TMDB_API_KEY, GEMINI_API_KEY (free at aistudio.google.com/apikey)
+uv run python -m app.password   # sets LOGIN_PASSWORD in .env to a random one
 uv sync
 uv run playwright install chromium
 uv run --env-file .env python -m app               # http://localhost:3000 (or PORT); migrations run on start
