@@ -33,9 +33,9 @@ The part of the workspace the commit touches:
 
 | Scope    | Covers                                                                    |
 | -------- | ------------------------------------------------------------------------- |
-| `mobile` | `apps/mobile`                                                             |
-| `server` | `apps/server`                                                             |
-| `repo`   | Root config, workspace setup, and agent tooling (`.claude/`, `.mcp.json`) |
+| `mobile` | `mobile/`                                                                 |
+| `server` | `server/`                                                                 |
+| `repo`   | Root config and agent tooling (`.claude/`, `.mcp.json`)                   |
 
 Leave out the scope if a commit spans both apps. Split the commit instead when the changes are unrelated.
 

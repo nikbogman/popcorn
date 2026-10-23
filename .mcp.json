@@ -3,11 +3,7 @@
     "agent-device": {
       "type": "stdio",
       "command": "node",
-      "args": ["node_modules/agent-device/bin/agent-device.mjs", "mcp"]
-    },
-    "better-auth": {
-      "type": "http",
-      "url": "https://mcp.better-auth.com/mcp"
+      "args": ["mobile/node_modules/agent-device/bin/agent-device.mjs", "mcp"]
     }
   }
 }

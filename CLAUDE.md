@@ -1,23 +1,10 @@
 # Watcher
 
-pnpm workspace: `apps/mobile` (Expo, see [apps/mobile/AGENTS.md](apps/mobile/AGENTS.md)) and `apps/server` (Hono + Drizzle + Postgres + Better Auth, plus a Playwright Instagram reel scraper run from a Postgres job queue).
+Two apps, each with its own tooling: `mobile/` (Expo + pnpm, see [mobile/AGENTS.md](mobile/AGENTS.md)) and `server/` (Python: FastAPI + asyncpg + Postgres, plus a Playwright Instagram reel scraper run from a Postgres job queue; see [server/README.md](server/README.md)).
 
 - Domain terms: [CONTEXT.md](CONTEXT.md). Specs: GitHub issues, one per feature (Movie lists is #1).
 - Commit messages follow [COMMITS.md](COMMITS.md).
-- Before committing, run `pnpm format` and `pnpm lint` from the root (oxfmt and oxlint).
+- Before committing, format and lint what you touched: `pnpm format && pnpm lint` in `mobile/` (oxfmt, oxlint), `uv run ruff format && uv run ruff check` in `server/`.
+- Mobile's API types are generated: after changing a route or its shapes, run `uv run python -m watcher.openapi` in `server/`, then `pnpm api` in `mobile/`.
 - Use agent-device only for app/device automation tasks. For a normal app-driving task, start immediately.
-- Run `agent-device` through the workspace install (`pnpm exec agent-device`), not a global one.
-
-## Agent skills
-
-### Issue tracker
-
-Issues live in GitHub Issues (`nikbogman/watchlist`) via the `gh` CLI. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Multi-context: root `CONTEXT.md` (shared glossary) + `CONTEXT-MAP.md` pointing at `apps/mobile` and `apps/server` contexts. See `docs/agents/domain.md`.
+- Run `agent-device` through mobile's install (`pnpm exec agent-device` in `mobile/`), not a global one.
