@@ -25,7 +25,7 @@ async def main():
         gemini = await stack.enter_async_context(httpx.AsyncClient())
         stack.push_async_callback(close_shared_browser)
 
-        scrape = scrape_with_shared_browser(pool)
+        scrape = scrape_with_shared_browser(pool, float(os.environ.get('BROWSER_IDLE_MINUTES', 5)))
         identify = create_identifier(gemini_key, tmdb.search, gemini)
 
         async def find_title(url: str):

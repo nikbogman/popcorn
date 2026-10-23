@@ -4,6 +4,7 @@ import os
 import httpx
 import pytest
 
+from app.reels import browser
 from app.reels.identify import Batches, create_identifier
 from app.reels.queue import ReelQueue
 from app.reels.reel import Comment, Reel, Title
@@ -297,3 +298,18 @@ async def test_pages_through_comments_up_to_the_cap(scrape):
     # The reel has 1000+ comments and the page embeds only the first ~15, so 40 needs scrolling.
     reel = await scrape(LIVE_REEL, 40)
     assert len({(c.author, c.text) for c in reel.comments}) == len(reel.comments) == 40
+
+
+async def test_the_shared_browser_closes_when_idle_and_relaunches_for_the_next_job():
+    first = await browser._acquire()
+    browser._release(0)
+    closing = browser._idle_close
+    assert closing
+    await closing
+    assert not first.is_connected()
+
+    second = await browser._acquire()
+    browser._release(60)
+    assert await browser._acquire() is second, 'a job within the idle time reuses the browser'
+    await browser.close_shared_browser()
+    assert not second.is_connected()

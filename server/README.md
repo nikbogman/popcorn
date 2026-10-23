@@ -60,6 +60,7 @@ Finds which movie or TV show an Instagram reel is about. Prototype from [#14](ht
 - Startup (page load, network idle) is 5–6s; scrolling then adds 15–20 comments/s.
 - The worst case is 200 comments and 10 Gemini calls, within the free tier's ~15 requests/min.
 - Each browser context costs memory; one browser per reel used 200–300 MB each.
+- The shared Chromium closes after `BROWSER_IDLE_MINUTES` (default 5) without a job and relaunches on the next one.
 
 **Account and session**
 
