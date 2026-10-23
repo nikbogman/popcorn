@@ -22,7 +22,7 @@ TEST_DATABASE_URL=postgres://… uv run pytest           # each run migrates a t
 
 The homelab runs the server as the [`stacks/popcorn`](https://github.com/nikbogman/cloudberry/tree/main/stacks/popcorn) stack. Setup, secrets and the deploy command are in [cloudberry's `stacks/README.md`](https://github.com/nikbogman/cloudberry/blob/main/stacks/README.md#popcorn), and the request path is in the [architecture](../README.md#architecture). What the server guarantees for that setup:
 
-- Compose builds the [Dockerfile](Dockerfile) (Python plus Playwright's Chromium, about 150 MB) on blackberry from `main`. Redeploy with `--build` to pick up new commits.
+- Compose builds the [Dockerfile](Dockerfile) (Python plus Playwright's headless Chromium; the image is about 1.7 GB) on blackberry from `main`. Redeploy with `--build` to pick up new commits.
 - It serves at `/`, because Tailscale strips the `/popcorn` prefix.
 - It only listens on port 3000 (or `PORT`) after migrations have run, so an open port means it's ready. `GET /healthz` answers without a token.
 - If Postgres isn't up yet, the server exits and Docker restarts it.

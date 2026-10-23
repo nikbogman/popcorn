@@ -19,8 +19,9 @@ async def _shared_browser():
     if _browser and _browser.is_connected():
         return _browser
     _playwright = _playwright or await async_playwright().start()
+    # Headless runs chromium-headless-shell, the only Chromium the image installs (--only-shell).
     # Containers give /dev/shm only 64 MB, which crashes Chromium's pages; /tmp has room.
-    _browser = await _playwright.chromium.launch(args=['--disable-dev-shm-usage'])
+    _browser = await _playwright.chromium.launch(headless=True, args=['--disable-dev-shm-usage'])
     return _browser
 
 

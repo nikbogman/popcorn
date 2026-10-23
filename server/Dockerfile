@@ -7,8 +7,8 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PATH="/app/.venv/bin:$PATH"
 # Dependencies first, so code changes don't redo the install or the ~150 MB browser download.
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
-# Chromium matching the installed Playwright, plus the system libraries it needs.
-RUN playwright install --with-deps chromium
+# Only the headless shell matching the installed Playwright, plus the system libraries it needs. The scraper never runs headed.
+RUN playwright install --with-deps --only-shell chromium
 
 COPY app app
 CMD ["python", "-m", "app"]
