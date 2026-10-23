@@ -18,11 +18,13 @@ TEST_DATABASE_URL=postgres://… uv run pytest           # each run migrates a t
 
 ## Deploy (homelab)
 
-```sh
-docker compose up -d --build
-```
+The server runs on the homelab as the [`stacks/popcorn`](https://github.com/nikbogman/cloudberry/tree/main/stacks/popcorn) stack in [nikbogman/cloudberry](https://github.com/nikbogman/cloudberry). Setup, secrets and the deploy command are in [`stacks/README.md#popcorn`](https://github.com/nikbogman/cloudberry/blob/main/stacks/README.md#popcorn).
 
-[compose.yaml](compose.yaml) builds the [Dockerfile](Dockerfile) (Python plus Playwright's Chromium, about 150 MB) and reads `.env`. It uses the host's network, so a Postgres on the same machine is `127.0.0.1` in `DATABASE_URL`. If Postgres isn't up yet the server exits, and Docker restarts it.
+- Compose builds the [Dockerfile](Dockerfile) (Python plus Playwright's Chromium, about 150 MB) on blackberry from this repo's `main`, so redeploying with `--build` picks up new commits.
+- The phone reaches it at `https://raspberry.<tailnet>.ts.net/popcorn`. Tailscale strips the `/popcorn` prefix, so the server serves at `/`.
+- The gateway wakes blackberry and waits for port 3000 (or `PORT`). The server only listens after migrations have run. `GET /healthz` answers without a token.
+- Secrets live in the stack's `.env`: `uv run python -m app.password <cloudberry>/stacks/popcorn/.env` sets `LOGIN_PASSWORD`.
+- If Postgres isn't up yet, the server exits and Docker restarts it.
 
 ## Auth
 
