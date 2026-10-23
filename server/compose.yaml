@@ -1,0 +1,7 @@
+services:
+  server:
+    build: .
+    env_file: .env
+    restart: unless-stopped
+    # The host's network: Postgres on the same machine is 127.0.0.1, and the server listens on the host's port 3000 (or PORT).
+    network_mode: host
