@@ -1,6 +1,10 @@
 # Popcorn mobile
 
-Expo app. Talks to `server/` through `EXPO_PUBLIC_API_URL`. The URL may include a path, e.g. `https://raspberry.<tailnet>.ts.net/popcorn` for the homelab: every request goes through the API client's `baseUrl`, which keeps the path. Posters are absolute TMDB URLs, and deep links use the `popcorn://` scheme, so neither depends on it.
+The Expo app for [Popcorn](../README.md). It talks only to the [server](../server/README.md), at `EXPO_PUBLIC_API_URL`. Terms are defined in [CONTEXT.md](../CONTEXT.md).
+
+- `EXPO_PUBLIC_API_URL` may include a path, e.g. `https://raspberry.<tailnet>.ts.net/popcorn`. Every request goes through the API client's `baseUrl`, which keeps the path.
+- `src/api-types.ts` is generated: after a server route change, run `uv run python -m app.openapi` in `server/`, then `pnpm api` here.
+- Lint, format and typecheck: `pnpm format && pnpm lint && pnpm typecheck`.
 
 ## Develop
 
@@ -8,7 +12,7 @@ Expo app. Talks to `server/` through `EXPO_PUBLIC_API_URL`. The URL may include 
 pnpm start
 ```
 
-`EXPO_PUBLIC_API_URL` comes from `.env` (hosted server). A `.env.local` overrides it for a local server: `http://10.0.2.2:3000` from the Android emulator, or your machine's LAN IP from a phone, e.g. `http://192.168.1.20:3000`. Delete or rename `.env.local` to go back to the hosted server. See `.env.example`.
+`EXPO_PUBLIC_API_URL` comes from `.env` (the homelab server). A `.env.local` overrides it for a local server: `http://10.0.2.2:3000` from the Android emulator, or your machine's LAN IP from a phone, e.g. `http://192.168.1.20:3000`. Delete or rename `.env.local` to go back to the homelab. See `.env.example`.
 
 ## Install on a phone (no Google Play)
 

@@ -1,4 +1,6 @@
-# server
+# Popcorn server
+
+The API behind the [Popcorn](../README.md) app: the _Collection_, TMDB search and reel _Requests_ (terms in [CONTEXT.md](../CONTEXT.md)). The app's side is in [mobile/README.md](../mobile/README.md).
 
 Python 3.13, managed with [uv](https://docs.astral.sh/uv/).
 
@@ -14,17 +16,18 @@ TEST_DATABASE_URL=postgres://… uv run pytest           # each run migrates a t
 
 - Schema changes: add the next `app/migrations/NNNN_*.sql`. Each runs once, in name order, recorded in `schema_migration`.
 - Route or shape changes: run `uv run python -m app.openapi`, then `pnpm api` in `mobile/`. A test fails while `openapi.json` is stale.
-- Lint and format: `uv run ruff format && uv run ruff check`.
+- Lint, format and typecheck: `uv run ruff format && uv run ruff check && uv run ty check`.
 
-## Deploy (homelab)
+## Deploy
 
-The server runs on the homelab as the [`stacks/popcorn`](https://github.com/nikbogman/cloudberry/tree/main/stacks/popcorn) stack in [nikbogman/cloudberry](https://github.com/nikbogman/cloudberry). Setup, secrets and the deploy command are in [`stacks/README.md#popcorn`](https://github.com/nikbogman/cloudberry/blob/main/stacks/README.md#popcorn).
+The homelab runs the server as the [`stacks/popcorn`](https://github.com/nikbogman/cloudberry/tree/main/stacks/popcorn) stack. Setup, secrets and the deploy command are in [cloudberry's `stacks/README.md`](https://github.com/nikbogman/cloudberry/blob/main/stacks/README.md#popcorn), and the request path is in the [architecture](../README.md#architecture). What the server guarantees for that setup:
 
-- Compose builds the [Dockerfile](Dockerfile) (Python plus Playwright's Chromium, about 150 MB) on blackberry from this repo's `main`, so redeploying with `--build` picks up new commits.
-- The phone reaches it at `https://raspberry.<tailnet>.ts.net/popcorn`. Tailscale strips the `/popcorn` prefix, so the server serves at `/`.
-- The gateway wakes blackberry and waits for port 3000 (or `PORT`). The server only listens after migrations have run. `GET /healthz` answers without a token.
-- Secrets live in the stack's `.env`: `uv run python -m app.password <cloudberry>/stacks/popcorn/.env` sets `LOGIN_PASSWORD`.
+- Compose builds the [Dockerfile](Dockerfile) (Python plus Playwright's Chromium, about 150 MB) on blackberry from `main`. Redeploy with `--build` to pick up new commits.
+- It serves at `/`, because Tailscale strips the `/popcorn` prefix.
+- It only listens on port 3000 (or `PORT`) after migrations have run, so an open port means it's ready. `GET /healthz` answers without a token.
 - If Postgres isn't up yet, the server exits and Docker restarts it.
+- To set `LOGIN_PASSWORD` in the stack's secrets, run `uv run python -m app.password <cloudberry>/stacks/popcorn/.env`.
+- [`.github/workflows/server-image.yml`](../.github/workflows/server-image.yml) also pushes `ghcr.io/nikbogman/popcorn-server` on every push to `main`. The homelab doesn't use it yet.
 
 ## Auth
 
